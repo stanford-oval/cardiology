@@ -1,9 +1,10 @@
 import axios from 'axios';
+import path from 'path';
 
 export default class RemoteStore {
   key: string;
 
-  root: string; // Every file operation is relative to this path.
+  currentDir: string; // Every file operation is relative to this path.
 
   version: string | null; // System Version
 
@@ -21,13 +22,23 @@ export default class RemoteStore {
 
   constructor(key: string) {
     this.key = key;
-    this.root = '/';
+    this.currentDir = '/';
     this.version = null;
+  }
+
+  cd(dir: string): void {
+    this.currentDir = this.getPath(dir);
+  }
+
+  // Returns absolute path given relative path
+  getPath(to: string): string {
+    // path.resolve handles . and ..
+    return path.resolve(this.currentDir, to);
   }
 
   async load(): Promise<void> {
     // Clear existing settings
-    this.root = '/';
+    this.currentDir = '/';
 
     // load settings file from remote store
     let settings;
@@ -38,7 +49,7 @@ export default class RemoteStore {
     }
 
     // set appropriate variables based on settings
-    this.root = settings.root;
+    this.currentDir = settings.root;
     this.version = settings.version;
   }
 
@@ -47,6 +58,10 @@ export default class RemoteStore {
    * considering the root directory.
    */
   async get(filename: string): Promise<any> {
+    const apiArgs = {
+      path: this.getPath(filename),
+    };
+
     let response;
     try {
       response = await axios.post(
@@ -56,26 +71,36 @@ export default class RemoteStore {
           headers: {
             Authorization: `Bearer ${this.key}`,
             'Content-Type': 'text/plain',
-            'Dropbox-API-Arg': `{ 'path': '${this.root + filename}'}`,
+            'Dropbox-API-Arg': JSON.stringify(apiArgs),
           },
         },
       );
     } catch (e) {
-      throw Error('Remote store get operation failed.');
+      throw Error(`Remote store get operation failed. Reason: ${e}`);
     }
 
     return response.data;
   }
 
-  async put(data: string, filename: string): Promise<void> {
+  async put(data: any, filename: string): Promise<void> {
+    const apiArgs = {
+      path: this.getPath(filename),
+      mode: 'overwrite',
+      strict_conflict: true, // eslint-disable-line
+    };
+
     try {
-      await axios.post('https://content.dropboxapi.com/2/files/upload', data, {
-        headers: {
-          Authorization: `Bearer ${this.key}`,
-          'Content-Type': 'application/octet-stream',
-          'Dropbox-API-Arg': `{ 'path': '${filename}'}`,
+      return await axios.post(
+        `${RemoteStore.CONTENT_ENDPOINT}/2/files/upload`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${this.key}`,
+            'Content-Type': 'application/octet-stream',
+            'Dropbox-API-Arg': JSON.stringify(apiArgs),
+          },
         },
-      });
+      );
     } catch (e) {
       throw Error(`Putting data in remote store fails. Reason: ${e}.`);
     }
@@ -84,11 +109,11 @@ export default class RemoteStore {
   /*
    * Make directory with given path.
    */
-  async mkdir(path: string): Promise<void> {
+  async mkdir(filepath: string): Promise<void> {
     return axios.post(
       `${RemoteStore.STD_ENDPOINT}/2/files/create_folder_v2`,
       {
-        path,
+        path: this.getPath(filepath),
       },
       {
         headers: {
@@ -100,14 +125,14 @@ export default class RemoteStore {
   }
 
   /*
-   * Delete file with given filename.
+   * Delete file/folder with given filename.
    */
   async delete(filename: string): Promise<void> {
     try {
       await axios.post(
         `${RemoteStore.STD_ENDPOINT}/2/files/delete_v2`,
         {
-          path: filename,
+          path: this.getPath(filename),
         },
         {
           headers: {
