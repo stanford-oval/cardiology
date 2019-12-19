@@ -1,17 +1,38 @@
+import RemoteStore from './remoteStore';
+import Table from './table';
+
 export default class Database {
-  indexFile: string;
+  store: RemoteStore;
 
   tables: Table[];
 
-  constructor(index: string) {
-    this.indexFile = index;
+  version: string | null;
+
+  constructor(directory: string, storeKey: string) {
     this.tables = [];
+
+    const store = new RemoteStore(storeKey);
+    store.cd(directory);
+    this.store = store;
+
+    this.version = null;
   }
 
   /*
-   * Load database from index file.
+   * Load database from index file in remote store.
    */
-  static async load(index: string): Promise<void> {
-    // get list of table indexes in index file.
+  async load(): Promise<void> {
+    try {
+      // download index file
+      const index = await this.store.get('index.json');
+
+      // load tables
+      this.tables = index.tables.map(async (t: any) => {
+        const table = await Table.load(t.directory, this.store);
+        return table;
+      });
+    } catch (e) {
+      throw Error(`Failed to load database. Reason: "${e}"`);
+    }
   }
 }
