@@ -24,7 +24,7 @@
     "lint": "tsc --noEmit && eslint '*/**/*.{js,jsx,ts,tsx}' --quiet --fix",
     "start-dev": "nodemon --config \"./nodemon.json\"/",
     "start-prod": "node -r dotenv/config build/index.js",
-    "test": "jest --clearCache && jest"
+    "test": "jest"
   },
   "dependencies": {
     "@babel/polyfill": "^7.7.0",
