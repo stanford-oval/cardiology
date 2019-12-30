@@ -24,13 +24,20 @@
     "lint": "tsc --noEmit && eslint '*/**/*.{js,jsx,ts,tsx}' --quiet --fix",
     "start-dev": "nodemon --config \"./nodemon.json\"/",
     "start-prod": "node -r dotenv/config build/index.js",
-    "test": "jest"
+    "test": "jest",
+    "serve": "node build/server.js"
   },
   "dependencies": {
     "@babel/polyfill": "^7.7.0",
+    "@types/express-session": "^1.15.16",
+    "@types/isomorphic-fetch": "^0.0.35",
     "axios": "^0.19.0",
     "dotenv": "^8.2.0",
+    "dropbox": "^4.0.30",
     "express": "^4.17.1",
+    "express-session": "^1.17.0",
+    "isomorphic-fetch": "^2.2.1",
+    "node-cache": "^5.1.0",
     "winston": "^3.2.1"
   },
   "devDependencies": {
